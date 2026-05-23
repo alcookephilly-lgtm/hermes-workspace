@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { buildResolvedSessionHeaders } from '../../lib/send-stream-session-headers'
 import { buildWorkspaceScopedTextMessage } from '../../lib/workspace-message-scope'
+import { applyToolmindsetPolicy, loadToolmindsetPolicy } from '../../server/toolmindset-policy'
 import {
   collectSyntheticLiveToolEvents,
   createSyntheticLiveToolTracker,
@@ -371,9 +372,12 @@ export const Route = createFileRoute('/api/send-stream')({
         }
 
         const workspaceScope = await loadWorkspaceCatalog().catch(() => null)
-        const scopedMessage = buildWorkspaceScopedTextMessage(
-          getChatMessage(message, attachments),
-          workspaceScope,
+        const scopedMessage = applyToolmindsetPolicy(
+          buildWorkspaceScopedTextMessage(
+            getChatMessage(message, attachments),
+            workspaceScope,
+          ),
+          loadToolmindsetPolicy(),
         )
 
         // Create streaming response using the SHARED server connection
