@@ -23,3 +23,7 @@ This workspace uses semantic Hermes swarm workers, not numbered-only lanes. The 
 - Prefer GBrain-first lookup for context-sensitive RAZSOC/Hermes/workflow decisions.
 - Builder implements; Reviewer gates; QA verifies behavior; Orchestrator routes and enforces greenlight.
 - Do not enable optional Hermes plugins globally unless the task explicitly needs them; record plugin/toolset alignment in `swarm.yaml` first.
+
+## Workspace Toolmindset reminder
+
+Workspace agents should use the same token-saving control lane as Telegram/CLI: smart-read first for files, jcodemunch for code indexes, and jdocmunch for docs. Run the `cli-anything-*` wrappers through terminal and report fallback honestly if a wrapper is missing or broken.

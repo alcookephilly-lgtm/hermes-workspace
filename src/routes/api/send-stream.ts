@@ -28,6 +28,11 @@ import { openaiChat } from '../../server/openai-compat-api'
 import { streamResponses } from '../../server/responses-api'
 import { selectPortableConversationHistory } from '../../server/portable-history'
 import {
+  applyToolmindsetPolicy,
+  formatToolmindsetPolicy,
+  loadToolmindsetPolicy,
+} from '../../server/toolmindset-policy'
+import {
   SESSIONS_API_UNAVAILABLE_MESSAGE,
   createSession,
   ensureGatewayProbed,
@@ -371,9 +376,17 @@ export const Route = createFileRoute('/api/send-stream')({
         }
 
         const workspaceScope = await loadWorkspaceCatalog().catch(() => null)
-        const scopedMessage = buildWorkspaceScopedTextMessage(
-          getChatMessage(message, attachments),
-          workspaceScope,
+        const toolmindsetPolicy = loadToolmindsetPolicy()
+        const toolmindsetPolicyBlock = formatToolmindsetPolicy(toolmindsetPolicy)
+        const toolmindsetSystemMessage = toolmindsetPolicyBlock
+          ? `Workspace Toolmindset routing policy:\n${toolmindsetPolicyBlock}`
+          : ''
+        const scopedMessage = applyToolmindsetPolicy(
+          buildWorkspaceScopedTextMessage(
+            getChatMessage(message, attachments),
+            workspaceScope,
+          ),
+          toolmindsetPolicy,
         )
 
         // Create streaming response using the SHARED server connection
@@ -548,6 +561,9 @@ export const Route = createFileRoute('/api/send-stream')({
                     { localBaseUrl },
                   )
                   const portableMessages: Array<OpenAICompatMessage> = [
+                    ...(toolmindsetSystemMessage
+                      ? [{ role: 'system' as const, content: toolmindsetSystemMessage }]
+                      : []),
                     ...localeSystemMsg,
                     ...effectiveHistory,
                     {
@@ -584,6 +600,7 @@ export const Route = createFileRoute('/api/send-stream')({
                       const responsesStream = streamResponses({
                         input: scopedMessage,
                         conversationHistory: effectiveHistory,
+                        instructions: toolmindsetSystemMessage || undefined,
                         model:
                           typeof body.model === 'string' ? body.model : undefined,
                         sessionId: portableSessionKey,
@@ -973,7 +990,9 @@ export const Route = createFileRoute('/api/send-stream')({
                   message: scopedMessage,
                   model:
                     typeof body.model === 'string' ? body.model : undefined,
-                  system_message: thinking,
+                  system_message: [toolmindsetSystemMessage, thinking]
+                    .filter(Boolean)
+                    .join('\n\n') || undefined,
                   attachments: attachments || undefined,
                 },
                 {
